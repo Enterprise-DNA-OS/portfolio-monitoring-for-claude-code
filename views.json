@@ -1,13 +1,37 @@
 [
   {
-    "name": "week",
-    "title": "This week",
-    "subtitle": "Portfolio Monitoring for Claude Code: what needs attention, rendered by npm run view",
+    "name": "collection-week",
+    "title": "Portfolio collection week",
+    "subtitle": "Fictional demo until your own records are imported.",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "Reporting requirements",
+        "sql": "select company,owner,metric,period,due,value,currency,state from collection_week order by due,company,metric"
+      }
+    ]
+  },
+  {
+    "name": "attention",
+    "title": "Portfolio attention",
+    "sections": [
+      {
+        "title": "Overdue and incomplete",
+        "sql": "select company,owner,issue,due from attention order by due nulls first,company"
+      },
+      {
+        "title": "Open actions",
+        "sql": "select c.name as company,a.title,a.owner,a.due from actions a join companies c on c.id=a.company_id where closed_at is null order by due"
+      }
+    ]
+  },
+  {
+    "name": "variance",
+    "title": "Portfolio metric review",
+    "sections": [
+      {
+        "title": "Period comparisons",
+        "note": "Currencies stay separate. Missing values are not zero. Previous period means previous reported period, which can have gaps.",
+        "sql": "select company,metric,period,value,currency,previous_period,previous_value,change_percent,review_state,target_state from metric_variance order by company,period desc,metric"
       }
     ]
   }

@@ -1,11 +1,56 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "company-tearsheet",
+    "title": "Draft company review",
+    "for_each": "select id,name from companies where not archived order by name",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "Profile",
+        "sql": "select name,sector,country,currency,owner,review_due from companies where id=$1"
+      },
+      {
+        "title": "Reported metrics",
+        "note": "Internal management information. Check review state and period before use.",
+        "sql": "select metric,period,value,currency,review_state,source from latest_observations where company_id=$1 order by period desc,metric"
+      },
+      {
+        "title": "Updates",
+        "sql": "select note,source,actor,created_at from updates where company_id=$1 order by created_at desc"
+      }
+    ]
+  },
+  {
+    "name": "collection-request",
+    "title": "Draft collection checklist",
+    "for_each": "select id,name from companies where not archived order by name",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Figures to obtain or review",
+        "note": "Local checklist only. Nothing is sent.",
+        "sql": "select metric,period,due,state from collection_week where company_id=$1 and state<>'approved' order by period,metric"
+      },
+      {
+        "title": "Actions",
+        "sql": "select title,owner,due,closure from actions where company_id=$1 order by due"
+      }
+    ]
+  },
+  {
+    "name": "evidence-review",
+    "title": "Portfolio evidence review",
+    "for_each": "select id,name from companies order by name",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Privacy and review evidence",
+        "sql": "select name,personal,purpose,retention_review,accuracy_evidence,review_due from companies where id=$1"
+      },
+      {
+        "title": "Figure evidence",
+        "sql": "select metric,period,source,actor,review_state,reviewer,review_evidence from latest_observations where company_id=$1 order by period desc,metric"
+      }
     ]
   }
 ]

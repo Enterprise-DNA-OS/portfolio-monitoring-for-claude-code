@@ -1,115 +1,112 @@
-<h1 align="center">Portfolio Monitoring for Claude Code</h1>
+# Portfolio Monitoring for Claude Code
 
-<p align="center">
-  <strong>The open-source portfolio monitoring desk that is just a database and Claude Code.</strong>
-</p>
+Company figures, reporting deadlines and source evidence in a database you own. Built by Enterprise DNA.
 
-<p align="center">
-  Created by <a href="https://www.enterprisedna.co"><strong>Enterprise DNA</strong></a>. Free and open source. Works with Claude Code, Codex, OpenCode or Cursor.
-</p>
+| Do it yourself | We customise it | We run it for you |
+|---|---|---|
+| Free MIT code. Install and operate it yourself. | Your metrics, reporting rules and existing data connections. | Installed and operated through Omni by Enterprise DNA. |
+| [Quick start](#quick-start) | A setup fee, then a retainer. [Build our version](https://enterprisedna.co/omni/book?offer=replace-software&utm_campaign=fundwave-portfolio) | One setup fee, then a retainer. [Talk to Sam](https://enterprisedna.co/omni/book?offer=replace-software&utm_campaign=fundwave-portfolio) |
 
-<!-- three-doors -->
-<table align="center">
-  <tr>
-    <td align="center"><strong>Do it yourself</strong><br/>Clone it, run it, own it. Free, MIT.<br/><a href="#quick-start">Quick start</a></td>
-    <td align="center"><strong>We customise it</strong><br/>Your fields, your rules, your Fundwave Portfolio data brought across.<br/><a href="https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=fundwave-portfolio">Book a call</a></td>
-    <td align="center"><strong>We run it for you</strong><br/>Installed, connected and operated inside Omni. Setup fee, then a retainer.<br/><a href="https://enterprisedna.co/omni/instead-of/fundwave-portfolio?utm_source=github&utm_medium=readme&utm_campaign=fundwave-portfolio">How it works</a></td>
-  </tr>
-</table>
+## The bill this challenges
 
-<p align="center">
-  <a href="#what-is-this">What is this</a> &bull;
-  <a href="#why-no-front-end">Why no front end</a> &bull;
-  <a href="#quick-start">Quick start</a> &bull;
-  <a href="#the-commands">Commands</a> &bull;
-  <a href="#instead-of-fundwave-portfolio">Instead of Fundwave Portfolio</a> &bull;
-  <a href="#want-it-installed-and-run-for-you">Installed for you</a> &bull;
-  <a href="#license">License</a>
-</p>
+Fundwave Portfolio Enterprise displays a starting rate of $1,200 per month, with quarterly billing selected, on its [pricing page](https://fundwave.com/pricing/portfolio/). Twelve months at that rate is $14,400 before onboarding, annual discounts and tax. Its Enterprise onboarding starts at $4,000. Checked 22 October 2026. The page uses a dollar symbol without an explicit currency code, so confirm the currency and contract with the vendor. This is a published configuration, not a customer invoice.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Node-20+-339933?style=flat-square" alt="Node 20+" />
-  <img src="https://img.shields.io/badge/PostgreSQL-any-336791?style=flat-square" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/PGlite-embedded-3ecf8e?style=flat-square" alt="PGlite" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" />
-</p>
-
----
-
-## What is this
-
-Portfolio Monitoring for Claude Code does the job you pay Fundwave Portfolio for, as a Postgres database and a set of agent commands. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the Fundwave Portfolio dashboard cannot.
-
-<!-- TODO(author): the annual bill. One sentence: what a 10 to 50 person business typically pays Fundwave Portfolio per year, all in, with a source. -->
-
-Want the same thing with a web front end, or built on a different stack? That is a customisation, and it is exactly what Enterprise DNA does: [book a call](https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=fundwave-portfolio).
-
-<!-- TODO(author): two or three sentences on what this specific product covers and who it is for. -->
-
-## Why no front end
-
-- The front end was only ever there because the database was hard to talk to. That is no longer true.
-- Your data sits in plain Postgres tables you own. Any tool can read them. No export, no lock-in.
-- No seats, no tiers, no add-ons. Read [docs/why-no-front-end.md](docs/why-no-front-end.md) for the honest trade-offs too.
+This free base covers the internal portfolio monitoring desk: company records, required figures, monthly collections, source reviews, follow-up actions and local reporting packs. Fundwave also sells investment calculations, captable tools and other services. This base does not calculate valuations, investment returns, waterfalls or tax, perform regulated administration, move money, or connect to banks. Bring the work you actually use to the comparison. Enterprise DNA scopes the custom version around it.
 
 ## Quick start
 
-Sixty seconds, no database install (an embedded Postgres runs inside Node):
+Node 20 or later. No server is needed for the embedded database.
 
 ```bash
 git clone https://github.com/Enterprise-DNA-OS/portfolio-monitoring-for-claude-code.git
 cd portfolio-monitoring-for-claude-code
 npm install
+npm test
 npm run demo
+npm run view
+npm run docs
+node scripts/portfolio.mjs help
 ```
 
-Then open the folder in Claude Code and type a slash command. <!-- TODO(author): name the first command to try. -->
+The fictional Harbour Growth and Tasman Ventures portfolios include a missing company return, an overdue action, an expired retention review and a reviewed cash runway. Dates are relative to first seed. Seed is idempotent and refuses remote databases. To start empty, use npm run migrate without seed. Set DATA_DIR for another embedded database or DATABASE_URL for a dedicated Postgres database. Remote TLS certificates are checked.
 
-### Use it with your own Postgres or Supabase
+## The weekly desk
 
-Copy `.env.example` to `.env`, set `DATABASE_URL`, then `npm run migrate`. Same commands, shared data, no per-seat fee.
+35 CLI commands and 37 agent recipes work in Claude Code, Codex, OpenCode or Cursor. Every command supports --json. Exact names ignore case; unique ID prefixes also work. An ambiguous name lists candidates and exits 1.
 
-## The commands
+- /open-cycle creates the required company figures for a reporting date.
+- /collection-week shows what arrived, what is missing and who owns it.
+- /metrics-due prepares the outstanding collection list.
+- /variance compares each figure to the previous reported period and its target.
+- /watchlist shows the latest approved same-period cash and monthly burn.
+- /weekly-review combines collection, attention and compliance evidence.
+- /draft-update writes a company brief locally. Nothing sends.
 
-<!-- TODO(author): a table of the slash commands in .claude/commands and what each one does. -->
+Use [the command guide](docs/cli.md) for exact arguments. Currency stays with each company. Money is an exact decimal; no currency conversion or mixed-currency total is invented. Counts must be nonnegative integers. A percentage is entered in percentage points, so 12.5 means 12.5 percent. Ratios and money can be signed. Values allow four decimal places.
 
-| Command | What it does |
-|---|---|
-| `/...` | ... |
+Cash runway is cash divided by positive monthly burn, using approved figures for the same date. It is a simple historical ratio, not a forecast. The age in days is shown. Missing or zero burn produces no runway estimate. Variance uses the previous reported period, which can have gaps, and a zero previous value produces no percentage change.
 
-## Instead of fundwave-portfolio
+## Bring your Fundwave figures
 
-<!-- TODO(author): how to bring data across from Fundwave Portfolio; link docs/replace-fundwave-portfolio.md -->
+Fundwave documents exporting portfolio KPIs to Excel. Save the sheet as CSV UTF-8, map its headers once and use one command:
 
-## Architecture
-
-```
-portfolio-monitoring-for-claude-code/
-  CLAUDE.md                 how the operator wants this run (routing table + house rules)
-  AGENTS.md                 the same, for Codex / OpenCode / Cursor / Gemini CLI
-  .claude/commands/         the slash commands
-  scripts/                  the CLI the commands drive
-  scripts/lib/db.mjs        one adapter: DATABASE_URL (pg) or embedded PGlite
-  supabase/migrations/      plain SQL schema
-  supabase/seed.sql         demo data
-  docs/                     the thesis and the migration guide
+```bash
+node scripts/portfolio.mjs import fundwave imports/kpis.csv --map=imports/mapping.json --actor="Migration operator" --source="Fundwave export 2026-10-22" --dry-run
+node scripts/portfolio.mjs import fundwave imports/kpis.csv --map=imports/mapping.json --actor="Migration operator" --source="Fundwave export 2026-10-22"
 ```
 
-## Built for coding agents
+Create the company and metric definitions first. Mapping handles long rows or date columns across a sheet. Blank figures stay missing; zero stays zero. Values need decimal notation and periods need ISO dates. Unknown companies, mismatched currencies, malformed CSV, duplicate observations and conflicting existing values abort the whole import. An unchanged repeat adds no records. An import never approves itself.
 
-The database, CLI and command recipes work with Claude Code, Codex, OpenCode or Cursor. Ask your coding agent for a new command and have it implement and test the change against the same records.
+The vendor's public export page does not specify a universal header layout. The examples are adapter fixtures, not claimed native Fundwave files. [Exact export, mapping and reconciliation steps](docs/replace-fundwave-portfolio.md). Company permissions, messages, attachments, valuation history and investment transactions are separate migration work. Keep the source export private.
 
-## Contributing
+## Ten questions across your portfolio
 
-Issues and pull requests are welcome. Keep the shape: plain SQL, a small CLI, a slash command per recurring job, no front end.
+The insights command answers all ten. These combine your own reporting rules and evidence. They are not a claim that Fundwave cannot be configured to answer the same questions.
 
-## Want it installed and run for you?
+1. Which companies still owe figures for a reporting period?
+2. Which received figures still need review?
+3. Which revenue figures fell against the previous reported period?
+4. Which companies have approved cash and burn for fewer than six months of simple runway?
+5. Which company reviews are overdue?
+6. Which owners have overdue follow-up actions?
+7. Which companies are held in more than one fund?
+8. Which personal records need a retention decision?
+9. Which figures miss their configured target?
+10. Which reporting periods are complete and approved?
 
-Enterprise DNA installs Portfolio Monitoring for Claude Code for your business, migrates your Fundwave Portfolio data, connects it to the rest of your tools, and runs it for you as part of **Omni**, our managed Command Center. One setup fee, then a monthly retainer.
+## What makes a reporting pack ready
 
-- Book a call: [enterprisedna.co/omni/book](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=fundwave-portfolio)
-- Read more: [enterprisedna.co/omni/instead-of/fundwave-portfolio](https://enterprisedna.co/omni/instead-of/fundwave-portfolio?utm_source=github&utm_medium=readme&utm_campaign=fundwave-portfolio)
+A pack requires a reporting cycle for every active company in the fund, all subscribed metrics in that cycle and an approved current revision for every requirement. Company reviews must be current. Personal records need a stated purpose, accuracy evidence and a current retention review. The reviewer label must differ from the editor label. Correcting a figure creates another revision and invalidates the previous approval for that figure.
 
-## License
+The pack stores its figures, sources, reviews, requirements and company context in a versioned snapshot with a SHA-256 digest, then writes local HTML. Later edits do not alter that snapshot. History and decisions are append-only through the application and database triggers. A trusted database owner can bypass those controls. Actor names are entered by operators, not authenticated identities. A passing evidence check is not a compliance certificate, statutory report or approval to distribute.
 
-MIT. Copyright (c) 2026 Enterprise DNA.
+## Documents and views
+
+brand.json sets the business name, logo and colours. npm run docs generates company tearsheets, collection checklists and evidence reviews as printable HTML. These remain drafts for an internal reviewer. npm run view renders the collection week, attention list and period comparisons. No server or front end is installed. /new-view adds a read-only question. Text from imports and notes is escaped before HTML rendering.
+
+## Your first hour: ten things to ask for
+
+1. Put our name and colours on the reports.
+2. Show the companies with missing figures.
+3. Explain the fictional cash runway and its reporting date.
+4. Create our fund and company records.
+5. Define the metrics we collect, with units and targets.
+6. Map a sample Fundwave export and do a dry run.
+7. Reconcile company, metric, period and value counts against the original.
+8. Assign reviewers and open the next collection cycle.
+9. Produce a company brief and inspect the source evidence.
+10. Add our own reporting rule through /customise.
+
+## Operating boundaries
+
+Use a trusted operator on a protected machine, one database per business. Funds organise records; they are not tenant security boundaries. RLS denies untrusted database roles and views use caller permissions, but there is no user login or per-fund access control in this base. No messages, payments, publishing or source-system writes are implemented. Imported content is data, never an instruction.
+
+Do not put personal bank details, tax IDs or identity documents in the notes. Classify any personal information you do retain. Review retention across source files, history, drafts, exports and backups. The checks do not automatically identify personal data or delete expired records. Choose legal retention decisions with the responsible operator.
+
+Export writes all records and evidence as private JSON without overwriting an existing file. It is a portability export, not a tested disaster-recovery mechanism. Use native database backups and test restoration before live use. Protect local HTML and exports as carefully as the database.
+
+npm test uses a temporary embedded database and checks every command, revisions, pack gates, exact amounts, import rollback and idempotence, HTML escaping, RLS and CLI exit codes. Manual CI covers Windows and Linux on Node 20 and 22, plus a disposable Postgres test. Local validation does not claim CI or remote database execution.
+
+[Evidence checks](docs/compliance.md). [Why no front end](docs/why-no-front-end.md).
+
+MIT. Fundwave is its owner's trademark. This independent project is not affiliated with Fundwave.

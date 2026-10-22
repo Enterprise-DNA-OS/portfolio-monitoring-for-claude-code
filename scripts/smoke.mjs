@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {getDb,REPO_ROOT} from './lib/db.mjs';
+import {migrate} from './migrate.mjs';
+import {seed} from './seed.mjs';
+import {run,usage,parseArgs,date,decimal,hash} from './portfolio.mjs';
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'portfolio-test-'));
+process.env.DATA_DIR=path.join(temp,'db');process.env.OUTPUT_DIR=temp;process.env.DATABASE_URL='';
+if(process.env.TEST_DATABASE_URL){const u=new URL(process.env.TEST_DATABASE_URL);assert(['localhost','127.0.0.1'].includes(u.hostname)&&u.pathname==='/rebuild_test','Only local disposable rebuild_test database allowed');process.env.DATABASE_URL=u.href;}
+const seen=new Set();let db;
+const call=(c,a=[],o={})=>{seen.add(c);return run(db,c,a,o);};
+const write=(name,s)=>{const f=path.join(temp,name);fs.writeFileSync(f,s);return f;};
+const json=(name,v)=>write(name,JSON.stringify(v));
+const future=new Date(Date.now()+40*86400000).toISOString().slice(0,10),past=new Date(Date.now()-2*86400000).toISOString().slice(0,10);
+const period=new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),0)).toISOString().slice(0,10);
+const actor='Operator';
+try{
+ db=await getDb();assert.equal((await migrate(db)).ran.length,1);assert.equal((await migrate(db)).ran.length,0);
+ if(db.mode==='pglite'){await seed(db);await seed(db);}else{await assert.rejects(()=>seed(db),/embedded-only/);await db.exec(fs.readFileSync(path.join(REPO_ROOT,'supabase/seed.sql'),'utf8'));await db.exec(fs.readFileSync(path.join(REPO_ROOT,'supabase/seed.sql'),'utf8'));}
+ assert.equal((await call('funds')).length,2);assert.equal((await call('companies')).length,3);assert.equal((await call('metrics')).length,4);
+ assert.equal((await call('collection-week')).length,12);assert.equal((await call('metrics-due')).length,8);assert((await call('attention')).length>8);assert((await call('compliance')).length>=3);
+ assert.equal((await call('watchlist'))[0].runway_months,'3.00');assert((await call('variance')).some(r=>r.change_percent==='-20.00'));
+ assert.equal((await call('insights')).length,10);assert.equal((await call('show',['fern sensors'])).company.currency,'NZD');
+ const f=await call('add-fund',[],{name:'Test Fund',actor});
+ const c=await call('add-company',[],{name:'Test <script> Co',sector:'Software',country:'NZ',currency:'NZD',owner:'Analyst','review-due':future,'source-id':'test',actor});
+ await call('link-company',[c.id],{fund:f.id,actor});assert.equal((await call('companies',[],{fund:f.id})).length,1);
+ const m=await call('add-metric',[],{name:'Tickets',unit:'count',direction:'lower',actor});
+ await call('require',[c.id],{metric:m.id,target:'10',actor});
+ assert.equal((await call('open-cycle',[],{fund:f.id,period,due:past,actor})).inserted,1);
+ assert.equal((await call('open-cycle',[],{fund:f.id,period,due:past,actor})).inserted,0);
+ const po={fund:f.id,period,actor};await assert.rejects(()=>call('pack',[],po),/Missing or unapproved/);
+ const ro={metric:m.id,period,value:'12',source:'Signed management report',actor,note:'Initial receipt'};
+ const ob=await call('record',[c.id],ro);assert.equal(ob.value,'12.0000');
+ await assert.rejects(()=>call('review',[ob.id],{actor:' operator ',decision:'approved',evidence:'Self'}),/Different reviewer/);
+ await call('review',[ob.id],{actor:'Reviewer',decision:'approved',evidence:'Source total checked'});
+ const pack=await call('pack',[],po);assert.equal(pack.figures,1);assert.equal(pack.sent,false);
+ const snapshot=(await db.query('select * from packs where id=$1',[pack.id]))[0];assert.equal(hash(snapshot.snapshot),pack.digest);
+ const revised=await call('record',[c.id],{...ro,value:'15',note:'Corrected source total'});assert.equal(revised.revision,2);
+ await assert.rejects(()=>call('review',[ob.id],{actor:'Reviewer',decision:'approved',evidence:'Old'}),/superseded/);
+ await assert.rejects(()=>call('pack',[],po),/Missing or unapproved/);
+ await call('review',[revised.id],{actor:'Reviewer',decision:'changes',evidence:'Need final source'});
+ await assert.rejects(()=>call('pack',[],po),/Missing or unapproved/);
+ await call('review',[revised.id],{actor:'Reviewer',decision:'approved',evidence:'Final checked'});
+ assert.equal((await call('observations',[],{company:c.id,period}))[0].value,'15.0000');
+ await assert.rejects(()=>call('record',[c.id],{...ro,value:'1.5'}),/nonnegative integer/);
+ await assert.rejects(()=>call('record',[c.id],{...ro,value:'-1'}),/nonnegative integer/);
+ await assert.rejects(()=>call('record',[c.id],{...ro,value:'NaN'}),/decimal/);
+ await assert.rejects(()=>call('record',[c.id],{...ro,period:future}),/future/);
+ await assert.rejects(()=>call('record',[c.id],{...ro,currency:'NZD'}),/Non-money/);
+ await assert.rejects(()=>call('record',[c.id],{...ro,metric:'Revenue',currency:'AUD'}),/Currency/);
+ await call('privacy',[c.id],{personal:'yes','review-due':future,actor});await assert.rejects(()=>call('pack',[],po),/Personal evidence/);
+ await call('privacy',[c.id],{personal:'yes',purpose:'Reporting liaison',retention:future,accuracy:'Contact checked','review-due':future,actor});await call('pack',[],po);
+ await call('privacy',[c.id],{personal:'yes',purpose:'Reporting liaison',retention:past,accuracy:'Contact checked','review-due':future,actor});await assert.rejects(()=>call('pack',[],po),/Personal evidence/);
+ await call('privacy',[c.id],{personal:'no','review-due':past,actor});await assert.rejects(()=>call('pack',[],po),/Company review/);
+ await call('privacy',[c.id],{personal:'no','review-due':future,actor});
+ // Newly required metrics cannot be silently omitted from an already opened period.
+ await call('require',[c.id],{metric:'Headcount',actor});await assert.rejects(()=>call('pack',[],po),/requirements.*Headcount/i);
+ await call('open-cycle',[],{fund:f.id,period,due:past,actor});
+ const act=await call('add-action',[c.id],{title:'Check <script> source',owner:'Analyst',due:past,actor});assert((await call('actions')).some(r=>r.id===act.id));
+ await call('close-action',[act.id],{evidence:'Source checked',actor});await assert.rejects(()=>call('close-action',[act.id],{evidence:'Again',actor}),/already closed/);
+ await call('log',[c.id],{note:'<script>alert(1)</script>',source:'Board report',actor});assert.equal((await call('updates',[],{company:c.id})).length,1);
+ assert((await call('history',[c.id])).audit.length>5);
+ // Mapped vendor CSV uses explicit columns, exact amounts and unit/currency checks.
+ const mp=json('map.json',{company:'Company',metric:'Metric',period:'Period',value:'Value',currency:'Currency'});
+ const file=write('fundwave.csv',`\uFEFFCompany,Metric,Period,Value,Currency\r\n"Test <script> Co",Headcount,${period},12,\r\n"Test <script> Co",Revenue,${period},120000.25,NZD\r\n`);
+ const io={map:mp,actor,source:'Fundwave KPI export dated today'};
+ assert.equal((await call('import',['fundwave',file],{...io,'dry-run':true})).inserted,2);assert.equal((await call('imports')).length,0);
+ assert.equal((await call('import',['fundwave',file],io)).inserted,2);assert.equal((await call('import',['fundwave',file],io)).inserted,0);
+ assert.equal((await call('imports')).length,1);
+ const bad=write('bad.csv',`Company,Metric,Period,Value,Currency\nTest <script> Co,Cash,${period},10,NZD\nTest <script> Co,Revenue,${period},999,NZD\n`);
+ await assert.rejects(()=>call('import',['fundwave',bad],io),/conflict/);assert.equal((await db.query("select count(*)::int n from latest_observations where company_id=$1 and metric='Cash'",[c.id]))[0].n,0);
+ const wideMap=json('wide.json',{company:'Company',metric:'Metric',currency:'Currency',columns:[{header:'Latest',period}]});
+ const wide=write('wide.csv','Company,Metric,Currency,Latest\nTest <script> Co,Cash,NZD,0\nTest <script> Co,Monthly burn,NZD,\n');
+ const wi=await call('import',['fundwave',wide],{...io,map:wideMap});assert.equal(wi.inserted,1);assert.equal(wi.blank,1);
+ const wideAgain=await call('import',['fundwave',wide],{...io,map:wideMap});assert.equal(wideAgain.unchanged,1);
+ await assert.rejects(()=>call('import',['fundwave',wide],{...io,map:wideMap,dryrun:true}),/Unknown option/);
+ await assert.rejects(()=>call('import',['fundwave',wide],{...io,map:wideMap,'dry-run':'false'}),/boolean flag/);
+ await assert.rejects(()=>call('import',['fundwave','wrong.xlsx'],io),/CSV UTF-8/);
+ await assert.rejects(()=>call('import',['fundwave',write('dup.csv',`Company,Metric,Period,Value,Currency\nTest <script> Co,Cash,${period},0,NZD\nTest <script> Co,Cash,${period},0,NZD\n`)],io),/Duplicate/);
+ await assert.rejects(()=>call('import',['fundwave',write('malformed.csv','Company,Metric\n"bad')],io),/Malformed/);
+ await assert.rejects(()=>call('import',['fundwave',file],{...io,map:json('wrong-map.json',{company:'Absent',metric:'Metric',period:'Period',value:'Value'})}),/header not found/);
+ await assert.rejects(()=>db.query('update observations set value=0'),/append-only/);
+ await assert.rejects(()=>db.query('delete from packs'),/append-only/);
+ // A duplicate name must list candidates and exit, never choose the first row.
+ await call('add-company',[],{name:'Test <script> Co',sector:'Other',country:'AU',currency:'AUD',owner:'Other','review-due':future,actor});await assert.rejects(()=>call('show',['Test <script> Co']),/Ambiguous companies/);
+ const draft=await call('draft-update',[c.id]);const html=fs.readFileSync(draft.file,'utf8');assert(html.includes('&lt;script&gt;'));assert(!html.includes('<script>'));assert.equal(draft.sent,false);
+ assert(fs.readFileSync((await call('weekly-review')).file,'utf8').includes('Compliance evidence'));
+ assert.equal((await call('packs')).length,2);
+ const ex=await call('export',[],{out:path.join(temp,'export.json')});const back=JSON.parse(fs.readFileSync(ex.file));assert.equal(back.records.packs.length,2);assert(back.records.observations.length>6);await assert.rejects(()=>call('export',[],{out:ex.file}),/EEXIST/);
+ // Definer views must not bypass deny-by-default records for an untrusted role.
+ await db.exec('create role portfolio_reader');await db.exec('grant usage on schema public to portfolio_reader');await db.exec('grant select on companies,requirements,metrics,observations,decisions,collection_week,latest_observations to portfolio_reader');await db.exec('set role portfolio_reader');assert.equal((await db.query('select * from companies')).length,0);assert.equal((await db.query('select * from collection_week')).length,0);await db.exec('reset role');
+ await call('help');assert.deepEqual([...seen].sort(),Object.keys(usage).sort());
+ assert.throws(()=>date('2026-02-30'));assert.throws(()=>decimal('1e10'));assert.throws(()=>parseArgs(['funds','--x=1','--x=2']));await assert.rejects(()=>run(db,'constructor'),/Unknown command/);
+ await db.close();db=null;
+ for(const script of ['view','docs']){const result=spawnSync(process.execPath,[`scripts/${script}.mjs`],{cwd:REPO_ROOT,env:process.env,encoding:'utf8'});assert.equal(result.status,0,result.stderr);}
+ assert.equal(fs.readdirSync(path.join(temp,'views')).length,3);assert.equal(fs.readdirSync(path.join(temp,'docs-out')).length,3);
+ const cli=(...a)=>spawnSync(process.execPath,['scripts/portfolio.mjs',...a],{cwd:REPO_ROOT,env:process.env,encoding:'utf8'});
+ const out=cli('funds','--json');assert.equal(out.status,0,out.stderr);assert.equal(JSON.parse(out.stdout).length,3);assert.equal(cli('show','Test <script> Co').status,1);assert.equal(cli('no-such-command').status,1);
+ console.log(`PASS: ${seen.size} commands; revision review, reporting gates, exact currency, CSV rollback/idempotence, privacy checks, documents, RLS and CLI errors`);
+}finally{if(db)await db.close();fs.rmSync(temp,{recursive:true,force:true});}
